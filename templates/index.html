@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Commodity Export Predictor</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        form { display: grid; gap: 10px; }
+        select { width: 100%; padding: 5px; }
+        button { padding: 10px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        #result { margin-top: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Commodity Export Quantity Predictor</h1>
+    <form id="prediction-form">
+        <label for="year">Year:</label>
+        <select id="year" name="year" required>
+            <option value="">Select a year</option>
+            {% for year in years %}
+            <option value="{{ year }}">{{ year }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="state_name">State Name:</label>
+        <select id="state_name" name="state_name" aria-placeholder="Select State" required>
+            <option value="">Select a state</option>
+            {% for state in states %}
+            <option value="{{ state }}">{{ state }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="port_of_export">Port of Export:</label>
+        <select id="port_of_export" name="port_of_export" required>
+            <option value="">Select a state first</option>
+        </select>
+
+        <label for="commodity_category">Commodity Category:</label>
+        <select id="commodity_category" name="commodity_category" required>
+            <option value="">Select a port first</option>
+        </select>
+
+        <button type="submit">Predict</button>
+    </form>
+
+    <div id="result"></div>
+
+    <script>
+        $(document).ready(function() {
+            $('#state_name').change(function() {
+                var state = $(this).val();
+                if (state) {
+                    $.ajax({
+                        url: '/get_ports',
+                        type: 'POST',
+                        data: {state: state},
+                        success: function(response) {
+                            $('#port_of_export').empty();
+                            $('#port_of_export').append('<option value="">Select a port</option>');
+                            $.each(response, function(index, port) {
+                                $('#port_of_export').append('<option value="' + port + '">' + port + '</option>');
+                            });
+                            $('#commodity_category').empty();
+                            $('#commodity_category').append('<option value="">Select a port first</option>');
+                        }
+                    });
+                } else {
+                    $('#port_of_export').empty();
+                    $('#port_of_export').append('<option value="">Select a state first</option>');
+                    $('#commodity_category').empty();
+                    $('#commodity_category').append('<option value="">Select a port first</option>');
+                }
+            });
+
+            $('#port_of_export').change(function() {
+                var state = $('#state_name').val();
+                var port = $(this).val();
+                if (state && port) {
+                    $.ajax({
+                        url: '/get_commodities',
+                        type: 'POST',
+                        data: {state: state, port: port},
+                        success: function(response) {
+                            $('#commodity_category').empty();
+                            $('#commodity_category').append('<option value="">Select a commodity</option>');
+                            $.each(response, function(index, commodity) {
+                                $('#commodity_category').append('<option value="' + commodity + '">' + commodity + '</option>');
+                            });
+                        }
+                    });
+                } else {
+                    $('#commodity_category').empty();
+                    $('#commodity_category').append('<option value="">Select a port first</option>');
+                }
+            });
+
+            $('#prediction-form').submit(function(e) {
+                e.preventDefault();
+                var formData = $(this).serialize();
+                $.ajax({
+                    url: '/predict',
+                    type: 'POST',
+                    data: formData,
+                    success: function(response) {
+                        $('#result').text('Predicted Quantity of Commodity: ' + response.predicted_quantity.toFixed(2));
+                    },
+                    error: function() {
+                        $('#result').text('An error occurred. Please try again.');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
